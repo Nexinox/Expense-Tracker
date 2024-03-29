@@ -7,6 +7,7 @@ import type { RecordService } from 'pocketbase'
 
 export enum Collections {
 	Expenses = "expenses",
+	Incomes = "incomes",
 	Usernames = "usernames",
 	Users = "users",
 }
@@ -35,26 +36,37 @@ export type AuthSystemFields<T = never> = {
 
 // Record types for each collection
 
-export enum ExpensesRepeatTypeOptions {
+export enum ExpensesRecurringTypeOptions {
+	"ONCE" = "ONCE",
 	"DAILY" = "DAILY",
 	"WEEKLY" = "WEEKLY",
 	"MONTHLY" = "MONTHLY",
 	"YEARLY" = "YEARLY",
-	"EVERY_X_DAYS" = "EVERY_X_DAYS",
-	"EVERY_X_WEEKS" = "EVERY_X_WEEKS",
-	"EVERY_X_MONTHS" = "EVERY_X_MONTHS",
-	"EVERY_X_YEARS" = "EVERY_X_YEARS",
-	"ONCE" = "ONCE",
 }
 export type ExpensesRecord = {
 	amount: number
-	dueOn: IsoDateString
+	dueOn: string
+	interval?: number
 	name: string
-	repeatType: ExpensesRepeatTypeOptions
+	recurringType: ExpensesRecurringTypeOptions
 	serviceIconUrl?: string
 	serviceName: string
 	serviceUrl?: string
-	unitsInBetween?: number
+	user: RecordIdString
+}
+
+export enum IncomesTypeOptions {
+	"ONCE" = "ONCE",
+	"MONTHLY" = "MONTHLY",
+	"AVERAGE_OF_GROUP" = "AVERAGE_OF_GROUP",
+}
+export type IncomesRecord = {
+	amount: number
+	from?: string
+	group?: string
+	incomeOn: IsoDateString
+	name: string
+	type: IncomesTypeOptions
 	user: RecordIdString
 }
 
@@ -70,6 +82,7 @@ export type UsersRecord = {
 
 // Response types include system fields and match responses from the PocketBase API
 export type ExpensesResponse<Texpand = unknown> = Required<ExpensesRecord> & BaseSystemFields<Texpand>
+export type IncomesResponse<Texpand = unknown> = Required<IncomesRecord> & BaseSystemFields<Texpand>
 export type UsernamesResponse<Texpand = unknown> = Required<UsernamesRecord> & BaseSystemFields<Texpand>
 export type UsersResponse<Texpand = unknown> = Required<UsersRecord> & AuthSystemFields<Texpand>
 
@@ -77,12 +90,14 @@ export type UsersResponse<Texpand = unknown> = Required<UsersRecord> & AuthSyste
 
 export type CollectionRecords = {
 	expenses: ExpensesRecord
+	incomes: IncomesRecord
 	usernames: UsernamesRecord
 	users: UsersRecord
 }
 
 export type CollectionResponses = {
 	expenses: ExpensesResponse
+	incomes: IncomesResponse
 	usernames: UsernamesResponse
 	users: UsersResponse
 }
@@ -92,6 +107,7 @@ export type CollectionResponses = {
 
 export type TypedPocketBase = PocketBase & {
 	collection(idOrName: 'expenses'): RecordService<ExpensesResponse>
+	collection(idOrName: 'incomes'): RecordService<IncomesResponse>
 	collection(idOrName: 'usernames'): RecordService<UsernamesResponse>
 	collection(idOrName: 'users'): RecordService<UsersResponse>
 }

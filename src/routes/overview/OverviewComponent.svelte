@@ -1,144 +1,96 @@
 <script lang="ts">
+	import { amountDueInMonth } from '$lib/ExpenseUtils';
+	import { calculateIncomeForMonth } from '$lib/IncomeUtils';
 	import AuthCheck from '$lib/components/AuthCheck.svelte';
 	import { currentUser } from '$lib/pocketbase';
-	import { ExpensesRepeatTypeOptions, type ExpensesResponse } from '$lib/pocketbase-types';
+	import { IncomesTypeOptions } from '$lib/pocketbase-types';
 	import { expenses } from '$lib/stores/Expenses';
+	import { incomes } from '$lib/stores/Incomes';
 
 	export let year: number;
 	export let month: number;
 
-	let expensesThisMonth: ExpensesResponse[] = [];
+	let totalExpenses: number = 0;
 	expenses.subscribe((value) => {
-		const daysInMonth = new Date(year, month, 0).getDate();
 		if (!value) return;
-		expensesThisMonth = [];
 		value.forEach((expense) => {
-			const dueOnDate = new Date(expense.dueOn);
-			const dueOnMonth = dueOnDate.getMonth() + 1; // getMonth() returns 0-11
-			const dueOnYear = dueOnDate.getFullYear();
+			totalExpenses += amountDueInMonth(expense, year, month);
+		});
+	});
+	let totalIncome: number = 0;
+	incomes.subscribe((value) => {
+		if (!value) return;
+		value.forEach((income) => {
+			const ammount = calculateIncomeForMonth(income, year, month, value);
+			totalIncome += ammount;
 
-			if (dueOnYear < year || (dueOnYear === year && dueOnMonth <= month)) {
-				switch (expense.repeatType) {
-					case ExpensesRepeatTypeOptions.DAILY:
-						for (let i = 0; i < daysInMonth; i++) {
-							expensesThisMonth = [...expensesThisMonth, expense];
-						}
-						break;
-					case ExpensesRepeatTypeOptions.WEEKLY:
-						for (let i = 0; i < daysInMonth; i += 7) {
-							expensesThisMonth = [...expensesThisMonth, expense];
-						}
-						break;
-					case ExpensesRepeatTypeOptions.MONTHLY:
-						expensesThisMonth = [...expensesThisMonth, expense];
-						break;
-					case ExpensesRepeatTypeOptions.YEARLY:
-						if (dueOnMonth === month) {
-							expensesThisMonth = [...expensesThisMonth, expense];
-						}
-						break;
-					case ExpensesRepeatTypeOptions.ONCE:
-						if (dueOnMonth === month && dueOnYear === year) {
-							expensesThisMonth = [...expensesThisMonth, expense];
-						}
-						break;
-					case ExpensesRepeatTypeOptions.EVERY_X_DAYS:
-						const unitsInBetweenDays = expense.unitsInBetween || 1;
-						let dateCursor = new Date(dueOnDate);
-						while (
-							dateCursor.getFullYear() < year ||
-							(dateCursor.getFullYear() === year && dateCursor.getMonth() + 1 <= month)
-						) {
-							if (dateCursor.getFullYear() === year && dateCursor.getMonth() + 1 === month) {
-								expensesThisMonth = [
-									...expensesThisMonth,
-									{ ...expense, dueOn: dateCursor.toISOString() }
-								];
-							}
-							dateCursor.setDate(dateCursor.getDate() + unitsInBetweenDays);
-						}
-						break;
-					case ExpensesRepeatTypeOptions.EVERY_X_WEEKS:
-						const unitsInBetweenWeeks = expense.unitsInBetween || 1;
-						let dateCursorWeeks = new Date(dueOnDate);
-						while (
-							dateCursorWeeks.getFullYear() < year ||
-							(dateCursorWeeks.getFullYear() === year && dateCursorWeeks.getMonth() + 1 <= month)
-						) {
-							if (
-								dateCursorWeeks.getFullYear() === year &&
-								dateCursorWeeks.getMonth() + 1 === month
-							) {
-								expensesThisMonth = [
-									...expensesThisMonth,
-									{ ...expense, dueOn: dateCursorWeeks.toISOString() }
-								];
-							}
-							dateCursorWeeks.setDate(dateCursorWeeks.getDate() + unitsInBetweenWeeks * 7);
-						}
-						break;
-					case ExpensesRepeatTypeOptions.EVERY_X_MONTHS:
-						const unitsInBetweenMonths = expense.unitsInBetween || 1;
-						let dateCursorMonths = new Date(dueOnDate);
-						while (
-							dateCursorMonths.getFullYear() < year ||
-							(dateCursorMonths.getFullYear() === year && dateCursorMonths.getMonth() + 1 <= month)
-						) {
-							if (
-								dateCursorMonths.getFullYear() === year &&
-								dateCursorMonths.getMonth() + 1 === month
-							) {
-								expensesThisMonth = [
-									...expensesThisMonth,
-									{ ...expense, dueOn: dateCursorMonths.toISOString() }
-								];
-							}
-							dateCursorMonths.setMonth(dateCursorMonths.getMonth() + unitsInBetweenMonths);
-						}
-						break;
-					case ExpensesRepeatTypeOptions.EVERY_X_YEARS:
-						const unitsInBetween = expense.unitsInBetween || 1;
-						const timeDifference =
-							expense.repeatType === ExpensesRepeatTypeOptions.EVERY_X_YEARS
-								? year - dueOnYear
-								: month - dueOnMonth;
-						if (timeDifference % unitsInBetween === 0) {
-							expensesThisMonth = [...expensesThisMonth, expense];
-						}
-						break;
+			return;
+			if(income.type === IncomesTypeOptions.MONTHLY){
+				// if the month and year are before the incomeOn date, then we ignore it
+				if(new Date(income.incomeOn).getFullYear() > year || (new Date(income.incomeOn).getFullYear() === year && new Date(income.incomeOn).getMonth() > month)){
+					console.log('ignoring', income);
+					return;
+				}
+				totalIncome += income.amount;
+			}else if (income.type === IncomesTypeOptions.ONCE && new Date(income.incomeOn).getMonth() === month && new Date(income.incomeOn).getFullYear() === year) {
+				totalIncome += income.amount;
+			}else if (income.type === IncomesTypeOptions.AVERAGE_OF_GROUP){
+
+				// if the month and year are before the incomeOn date, then we ignore it
+				if(new Date(income.incomeOn).getFullYear() > year || (new Date(income.incomeOn).getFullYear() === year && new Date(income.incomeOn).getMonth() > month)){
+					return;
+				}
+
+				const incomesInGroupThisMonth = value.filter((i) => i.group === income.group)
+					.filter((i)=>new Date(i.incomeOn).getFullYear() === year)
+					.filter((i)=>new Date(i.incomeOn).getMonth() === month)
+					.filter((i) => i.type === IncomesTypeOptions.ONCE);
+				if (incomesInGroupThisMonth.length === 0) {
+					let total = 0;
+					let members = 0;
+					value.filter((i) => i.group === income.group)
+						.filter((i) => i.type !== IncomesTypeOptions.AVERAGE_OF_GROUP)
+						.filter((i) => new Date(i.incomeOn).getFullYear() <= year)
+						.filter((i) => new Date(i.incomeOn).getMonth() <= month)
+						.forEach((i) => {
+							total += i.amount;
+							members++;
+						});
+					totalIncome += total / members;
 				}
 			}
 		});
+		if (!totalIncome) {
+			totalIncome = 0;
+		}
 	});
-
-	$: totalExpenses = expensesThisMonth.reduce((acc, expense) => acc + expense.amount, 0);
 
 	function getMonthName(month: number) {
 		switch (month) {
+			case 0:
+				return 'Januar';
 			case 1:
-				return 'January';
+				return 'Februar';
 			case 2:
-				return 'Febuary';
+				return 'März';
 			case 3:
-				return 'March';
-			case 4:
 				return 'April';
+			case 4:
+				return 'Mai';
 			case 5:
-				return 'May';
+				return 'Juni';
 			case 6:
-				return 'June';
+				return 'Juli';
 			case 7:
-				return 'July';
-			case 8:
 				return 'August';
-			case 9:
+			case 8:
 				return 'September';
-			case 10:
+			case 9:
 				return 'Oktober';
-			case 11:
+			case 10:
 				return 'November';
-			case 12:
-				return 'December';
+			case 11:
+				return 'Dezember';
 			default:
 				return 'Error';
 		}
@@ -156,18 +108,18 @@
 	>
 		<div class="flex flex-col card-body gap-6">
 			<h1 class="text-3xl">{getMonthName(month)} {year}</h1>
-			<div class="flex flex-row w-full">
+			<div class="flex flex-col lg:flex-row w-full text-center items-center gap-4">
 				<div class="w-1/3">
-					<p class="text-xl">Total Expenses:</p>
+					<p class="text-xl">Ausgaben:</p>
 					<p class="text-2xl text-error">{roundNumber(totalExpenses)}{$currentUser?.currency}</p>
 				</div>
 				<div class="w-1/3">
-					<p class="text-xl">Total Income:</p>
-					<p class="text-2xl text-success">2000€</p>
+					<p class="text-xl">Einkommen:</p>
+					<p class="text-2xl text-success">{roundNumber(totalIncome)}{$currentUser?.currency}</p>
 				</div>
 				<div class="w-1/3">
-					<p class="text-xl">Funds left:</p>
-					<p class="text-2xl text-primary">1000€</p>
+					<p class="text-xl">Verfügbar:</p>
+					<p class="text-2xl text-primary">{roundNumber(totalIncome-totalExpenses)}{$currentUser?.currency}</p>
 				</div>
 			</div>
 		</div>
