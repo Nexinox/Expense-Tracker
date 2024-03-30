@@ -22,5 +22,8 @@ RUN rm -rf src/ static/ emailTemplates/ docker-compose.yml
 # The USER instruction sets the user name to use as the default user for the remainder of the current stage
 USER node:node
 
+# Expose the port the app runs on
+EXPOSE 3000
+
 # This is the command that will be run inside the image when you tell Docker to start the container
 CMD ["node","build/index.js"]
