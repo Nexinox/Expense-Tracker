@@ -3,13 +3,14 @@ import { Collections, type IncomesResponse, IncomesTypeOptions } from "$lib/pock
 
 export async function createIncome(income: IncomesResponse): Promise<IncomesResponse> {
     return pb.collection(Collections.Incomes)
-    .update(income.id, {
+    .create({
         name: income.name,
         amount: income.amount,
         from: income.from,
         type: income.type,
         incomeOn: income.incomeOn,
-        group: income.group
+        group: income.group,
+        user: income.user
     })
 }
 
