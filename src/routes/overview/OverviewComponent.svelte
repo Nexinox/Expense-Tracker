@@ -3,7 +3,6 @@
 	import { calculateIncomeForMonth } from '$lib/IncomeUtils';
 	import AuthCheck from '$lib/components/AuthCheck.svelte';
 	import { currentUser } from '$lib/pocketbase';
-	import { IncomesTypeOptions } from '$lib/pocketbase-types';
 	import { expenses } from '$lib/stores/Expenses';
 	import { incomes } from '$lib/stores/Incomes';
 
@@ -23,42 +22,6 @@
 		value.forEach((income) => {
 			const ammount = calculateIncomeForMonth(income, year, month, value);
 			totalIncome += ammount;
-
-			return;
-			if(income.type === IncomesTypeOptions.MONTHLY){
-				// if the month and year are before the incomeOn date, then we ignore it
-				if(new Date(income.incomeOn).getFullYear() > year || (new Date(income.incomeOn).getFullYear() === year && new Date(income.incomeOn).getMonth() > month)){
-					console.log('ignoring', income);
-					return;
-				}
-				totalIncome += income.amount;
-			}else if (income.type === IncomesTypeOptions.ONCE && new Date(income.incomeOn).getMonth() === month && new Date(income.incomeOn).getFullYear() === year) {
-				totalIncome += income.amount;
-			}else if (income.type === IncomesTypeOptions.AVERAGE_OF_GROUP){
-
-				// if the month and year are before the incomeOn date, then we ignore it
-				if(new Date(income.incomeOn).getFullYear() > year || (new Date(income.incomeOn).getFullYear() === year && new Date(income.incomeOn).getMonth() > month)){
-					return;
-				}
-
-				const incomesInGroupThisMonth = value.filter((i) => i.group === income.group)
-					.filter((i)=>new Date(i.incomeOn).getFullYear() === year)
-					.filter((i)=>new Date(i.incomeOn).getMonth() === month)
-					.filter((i) => i.type === IncomesTypeOptions.ONCE);
-				if (incomesInGroupThisMonth.length === 0) {
-					let total = 0;
-					let members = 0;
-					value.filter((i) => i.group === income.group)
-						.filter((i) => i.type !== IncomesTypeOptions.AVERAGE_OF_GROUP)
-						.filter((i) => new Date(i.incomeOn).getFullYear() <= year)
-						.filter((i) => new Date(i.incomeOn).getMonth() <= month)
-						.forEach((i) => {
-							total += i.amount;
-							members++;
-						});
-					totalIncome += total / members;
-				}
-			}
 		});
 		if (!totalIncome) {
 			totalIncome = 0;

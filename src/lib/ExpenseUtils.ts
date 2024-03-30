@@ -113,7 +113,6 @@ export function getExpensesInMonth(expenses: ExpensesResponse[], year: number, m
 }
 
 export function getExpensesInDay(expenses: ExpensesResponse[], year: number, month: number, day: number): ExpensesResponse[] {
-    console.log(expenses);
     return expenses.filter(expense => amountDueInDay(expense, year, month, day) > 0);
 }
 
