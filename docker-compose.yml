@@ -13,7 +13,7 @@ services:
       # Internal server error messages will not send stacktrace to the browser in production
       - NODE_ENV=production
       # Sets the timezone of the containers OS
-      - TZ=Pacific/Auckland
+      - TZ=Europe/Berlin
     # Points to a file with the sensitive environment variables
     restart: unless-stopped
     ports:
